@@ -20,7 +20,7 @@ static const uint8_t PUNCTUATION[256] = {
     ['^'] = 1, ['{']  = 1, ['|'] = 1, ['}']  = 1, ['~'] = 1
 };
 
-static inline int is_alpha_numeric(const char c)
+static inline int is_alpha_numeric(const uchar c)
 {
     return (
             (c >= 'a' && c <= 'z') ||
@@ -30,17 +30,17 @@ static inline int is_alpha_numeric(const char c)
             );
 }
 
-static inline int is_punctuation(const char c)
+static inline int is_punctuation(const uchar c)
 {
     return PUNCTUATION[c];
 }
 
-static inline int is_white_space(const char c)
+static inline int is_white_space(const uchar c)
 {
     return WHITESPACE[c];
 }
 
-void lexer_clean(char* restrict buf, uint32_t* restrict size)
+void lexer_clean(uchar* restrict buf, uint32_t* restrict size)
 {
     assert(NULL != buf);
     assert(NULL != size);
@@ -100,7 +100,9 @@ void lexer_clean(char* restrict buf, uint32_t* restrict size)
     *size = write;
 }
 
-TokenId* lexer_tokenize(char* restrict buf, const size_t buf_size)
+#define TOKEN_MAX_SIZE 64
+
+TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
 {
     assert(NULL != buf);
 
@@ -108,6 +110,9 @@ TokenId* lexer_tokenize(char* restrict buf, const size_t buf_size)
     size_t size = 0;
     TokenId* tokens = malloc(cap * sizeof(TokenId));
     if (NULL == tokens) return NULL;
+
+    uchar token[TOKEN_MAX_SIZE];
+    size_t token_size = 0;
 
     for (size_t i = 0; i < buf_size; ++i, ++size) {
         if (size >= cap) {
@@ -162,60 +167,35 @@ TokenId* lexer_tokenize(char* restrict buf, const size_t buf_size)
             case '>': 
                     tokens[size] = T_GT;
                     if (i < buf_size - 1) // if its not the last one
-                        if (buf[i + 1] == '<') {
+                        if (buf[i + 1] == '>') {
                             ++i; // skip next
                             tokens[size] = T_SHIFT_RIGHT;
                         }
                     continue;
 
-            case 'i':
-                      if (i > 0)
-                          if (buf[i - 1] != SP) continue;
-                      if (i + 3 < buf_size) {
-                          if (buf[i + 1] == '8' && buf[i + 2] == SP) {
-                              tokens[size] = T_I8;
-                              i += 2;
-                              continue;
-                          } else if (buf[i + 1] == '1' && buf[i + 2] == '6' && buf[i + 3] == SP) {
-                              tokens[size] = T_I16;
-                              i += 3;
-                              continue;
-                          } else if (buf[i + 1] == '3' && buf[i + 2] == '2' && buf[i + 3] == SP) {
-                              tokens[size] = T_I32;
-                              i += 3;
-                              continue;
-                          } else if (buf[i + 1] == '6' && buf[i + 2] == '4' && buf[i + 3] == SP) {
-                              tokens[size] = T_I64;
-                              i += 3;
-                              continue;
-                          }  
-                      }
-                      goto d;
-            case 'u': 
-                      if (i > 0)
-                          if (buf[i - 1] != SP) continue;
-                      if (i + 3 < buf_size) {
-                          if (buf[i + 1] == '8' && buf[i + 2] == SP) {
-                              tokens[size] = T_U8;
-                              i += 2;
-                              continue;
-                          } else if (buf[i + 1] == '1' && buf[i + 2] == '6' && buf[i + 3] == SP) {
-                              tokens[size] = T_U16;
-                              i += 3;
-                              continue;
-                          } else if (buf[i + 1] == '3' && buf[i + 2] == '2' && buf[i + 3] == SP) {
-                              tokens[size] = T_U32;
-                              i += 3;
-                              continue;
-                          } else if (buf[i + 1] == '6' && buf[i + 2] == '4' && buf[i + 3] == SP) {
-                              tokens[size] = T_U64;
-                              i += 3;
-                              continue;
-                          }  
-                      }
-                      goto d;
             default: 
-d:
+                    if (!is_alpha_numeric(buf[i])) {
+                        free(tokens);
+                        return NULL;
+                    }
+
+                    if (i > 0)
+                       if (is_alpha_numeric(buf[i - 1]))
+                           continue;
+
+                    token_size = 0;
+                    for (; i < buf_size; ++i) {
+                        if (!is_alpha_numeric(buf[i])) {
+                            break;
+                        }
+
+                        if (token_size >= TOKEN_MAX_SIZE) {
+                            free(tokens);
+                            return NULL;
+                        }
+                        token[token_size] = buf[i];
+                        ++token_size;
+                    }
                       continue;
         }
     }

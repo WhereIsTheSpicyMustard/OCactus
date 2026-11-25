@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include "globals.h"
 
-void lexer_clean(char* restrict buf, uint32_t* restrict size);
-TokenId* lexer_tokenize(char* restrict buf, const size_t buf_size);
+void lexer_clean(uchar* restrict buf, uint32_t* restrict size);
+TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size);
 
 #endif

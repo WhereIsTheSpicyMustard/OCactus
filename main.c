@@ -4,9 +4,9 @@
 #include "globals.h"
 #include "lexer.h"
 
-char* file_load(const char* const restrict path, uint32_t* restrict size)
+uchar* file_load(const char* const restrict path, uint32_t* restrict size)
 {
-    char* buf = NULL;
+    uchar* buf = NULL;
     FILE* fp = fopen(path, "rb");
     *size = 0;
 
@@ -65,7 +65,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    char* buf = NULL;
+    uchar* buf = NULL;
     uint32_t size;
     buf = file_load(argv[1], &size);
     if (NULL == buf) goto cleanup;

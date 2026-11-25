@@ -6,6 +6,8 @@
 
 #define report_error(c) fprintf(stderr, "[Error Report] %s %s:%d\n", #c, __FILE__, __LINE__)
 
+typedef unsigned char uchar;
+
 typedef enum {
     T_OPEN_ROUND, // (
     T_CLOSE_ROUND, // )
