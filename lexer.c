@@ -11,6 +11,8 @@
 #define MODE_NORMAL 0
 #define MODE_COMMENT 1
 
+#define TOKEN_MAX_SIZE 64
+
 static const uint8_t WHITESPACE[256] = {[' '] = 1, ['\t'] = 1, ['\n'] = 1};
 static const uint8_t PUNCTUATION[256] = {
     ['!'] = 1, ['"']  = 1, ['#'] = 1, ['$']  = 1, ['%'] = 1,
@@ -21,7 +23,9 @@ static const uint8_t PUNCTUATION[256] = {
     ['^'] = 1, ['{']  = 1, ['|'] = 1, ['}']  = 1, ['~'] = 1
 };
 
-uchar* token_strings = NULL;
+CharArray token_strings;
+Int32Array tokens;
+Int32Array token_map;
 
 static inline int is_alpha_numeric(const uchar c)
 {
@@ -103,88 +107,69 @@ void lexer_clean(uchar* restrict buf, uint32_t* restrict size)
     *size = write;
 }
 
-#define TOKEN_MAX_SIZE 64
 
-uint32_t* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
+int lexer_tokenize(uchar* restrict buf, const size_t buf_size)
 {
     assert(NULL != buf);
+    assert(buf_size > 1);
 
-    size_t cap = 64;
-    size_t size = 0;
-    uint32_t* tokens = malloc(cap * sizeof(*tokens));
-    if (NULL == tokens) return NULL;
+    array_init(tokens);
+    array_init(token_strings);
+    array_init(token_map);
 
     uchar token[TOKEN_MAX_SIZE];
     size_t token_size = 0;
 
-    // token_strings = calloc(strings_cap
-    CharArray test = {0};
-    array_append(test, '.');
 
-    for (size_t i = 0; i < buf_size; ++i, ++size) {
-        if (size >= cap) {
-            cap *= 2;
-            if (size >= cap) { // overflow check
-                free(tokens);
-                return NULL;
-            }
-
-            uint32_t* temp = realloc(tokens, cap * sizeof(*temp));
-            if (NULL == temp) {
-                free(tokens);
-                return NULL;
-            }
-            tokens = temp;
-        }
-
+    for (size_t i = 0; i < buf_size; ++i) {
         switch (buf[i]) {
-            case '(': tokens[size] = T_OPEN_ROUND; continue;
-            case ')': tokens[size] = T_CLOSE_ROUND; continue;
-            case '[': tokens[size] = T_OPEN_SQUARE; continue;
-            case ']': tokens[size] = T_CLOSE_SQUARE; continue;
-            case '{': tokens[size] = T_OPEN_CURLY; continue;
-            case '}': tokens[size] = T_CLOSE_CURLY; continue;
-            case ';': tokens[size] = T_END; continue;
-            case '?': tokens[size] = T_COND_JUMP; continue;
-            case '.': tokens[size] = T_LABEL; continue;
-            case '+': tokens[size] = T_ADD; continue;
-            case '-': tokens[size] = T_SUB; continue;
-            case '*': tokens[size] = T_MUL; continue;
-            case '/': tokens[size] = T_DIV; continue;
-            case '%': tokens[size] = T_MOD; continue;
-            case '=': tokens[size] = T_EQ; continue;
-            case '!': tokens[size] = T_NOT; continue;
-            case '&': tokens[size] = T_AND; continue;
-            case '|': tokens[size] = T_OR; continue;
-            case '~': tokens[size] = T_BIT_NOT; continue;
-            case '^': tokens[size] = T_BIT_XOR; continue;
-            case '$': tokens[size] = T_BIT_AND; continue;
-            case '@': tokens[size] = T_BIT_OR; continue;
-            case ':': tokens[size] = T_ASSIGN; continue;
+            case '(': array_append(tokens, T_OPEN_ROUND); continue;
+            case ')': array_append(tokens, T_CLOSE_ROUND); continue;
+            case '[': array_append(tokens, T_OPEN_SQUARE); continue;
+            case ']': array_append(tokens, T_CLOSE_SQUARE); continue;
+            case '{': array_append(tokens, T_OPEN_CURLY); continue;
+            case '}': array_append(tokens, T_CLOSE_CURLY); continue;
+            case ';': array_append(tokens, T_END); continue;
+            case '?': array_append(tokens, T_COND_JUMP); continue;
+            case '.': array_append(tokens, T_LABEL); continue;
+            case '+': array_append(tokens, T_ADD); continue;
+            case '-': array_append(tokens, T_SUB); continue;
+            case '*': array_append(tokens, T_MUL); continue;
+            case '/': array_append(tokens, T_DIV); continue;
+            case '%': array_append(tokens, T_MOD); continue;
+            case '=': array_append(tokens, T_EQ); continue;
+            case '!': array_append(tokens, T_NOT); continue;
+            case '&': array_append(tokens, T_AND); continue;
+            case '|': array_append(tokens, T_OR); continue;
+            case '~': array_append(tokens, T_BIT_NOT); continue;
+            case '^': array_append(tokens, T_BIT_XOR); continue;
+            case '$': array_append(tokens, T_BIT_AND); continue;
+            case '@': array_append(tokens, T_BIT_OR); continue;
+            case ':': array_append(tokens, T_ASSIGN); continue;
 
                       // special
             case '<':
-                    tokens[size] = T_LT;
                     if (i < buf_size - 1) // if its not the last one
                         if (buf[i + 1] == '<') {
-                            tokens[size] = T_SHIFT_LEFT;
                             ++i; // skip next
+                            array_append(tokens, T_SHIFT_LEFT);
+                            continue;
                         }
+                    array_append(tokens, T_LT);
                     continue;
             case '>': 
-                    tokens[size] = T_GT;
                     if (i < buf_size - 1) // if its not the last one
                         if (buf[i + 1] == '>') {
                             ++i; // skip next
-                            tokens[size] = T_SHIFT_RIGHT;
+                            array_append(tokens, T_SHIFT_RIGHT);
+                            continue;
                         }
+                    array_append(tokens, T_GT);
                     continue;
 
             default: 
-                    if (!is_alpha_numeric(buf[i])) {
-                        free(tokens);
-                        return NULL;
-                    }
+                    if (!is_alpha_numeric(buf[i]))
+                        return 1;
 
                     if (i > 0)
                        if (is_alpha_numeric(buf[i - 1]))
@@ -197,17 +182,16 @@ uint32_t* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
                             break;
                         }
 
-                        if (token_size >= TOKEN_MAX_SIZE) {
-                            free(tokens);
-                            return NULL;
-                        }
+                        if (token_size >= TOKEN_MAX_SIZE) 
+                            return 1;
                         token[token_size] = buf[i];
                         ++token_size;
                     }
 
-                      continue;
+
+                    continue;
         }
     }
 
-    return tokens;
+    return 0;
 }

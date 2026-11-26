@@ -58,7 +58,6 @@ typedef enum {
     T_COUNT
 } Id;
 
-
 typedef struct {
     uchar* data;
     size_t size;
@@ -70,6 +69,16 @@ typedef struct {
     size_t size;
     size_t capacity;
 } Int32Array;
+
+extern CharArray token_strings;
+extern Int32Array tokens;
+extern Int32Array token_map;
+
+#define array_init(arr) do { \
+    (arr).data = NULL; \
+    (arr).size = 0; \
+    (arr).capacity = 0; \
+} while (0)
 
 #define array_append(arr, x) do { \
     __typeof__(*(arr).data) aa_item = (x); \
@@ -95,5 +104,18 @@ typedef struct {
     ++((arr).size); \
 } while (0)
 
+static inline int string_is_equal(const uchar* restrict const a, const size_t a_len, const uchar* restrict const b, const size_t b_len) 
+{
+    if (a_len != b_len) return 0;
+    for (size_t i = 0; i < a_len; ++i) 
+        if (a[i] != b[i]) return 0;
+    return 1;
+}
+
+static inline size_t string_len(const uchar* restrict const a) // length not including null terminator
+{
+    for (size_t i = 0;; ++i) 
+        if (a[i] == '\0') return i;
+}
 
 #endif
