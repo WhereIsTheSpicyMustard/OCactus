@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include "globals.h"
 
@@ -19,6 +20,8 @@ static const uint8_t PUNCTUATION[256] = {
     ['?'] = 1, ['@']  = 1, ['['] = 1, ['\\'] = 1, [']'] = 1,
     ['^'] = 1, ['{']  = 1, ['|'] = 1, ['}']  = 1, ['~'] = 1
 };
+
+uchar* token_strings = NULL;
 
 static inline int is_alpha_numeric(const uchar c)
 {
@@ -102,17 +105,21 @@ void lexer_clean(uchar* restrict buf, uint32_t* restrict size)
 
 #define TOKEN_MAX_SIZE 64
 
-TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
+uint32_t* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
 {
     assert(NULL != buf);
 
     size_t cap = 64;
     size_t size = 0;
-    TokenId* tokens = malloc(cap * sizeof(TokenId));
+    uint32_t* tokens = malloc(cap * sizeof(*tokens));
     if (NULL == tokens) return NULL;
 
     uchar token[TOKEN_MAX_SIZE];
     size_t token_size = 0;
+
+    // token_strings = calloc(strings_cap
+    CharArray test = {0};
+    array_append(test, '.');
 
     for (size_t i = 0; i < buf_size; ++i, ++size) {
         if (size >= cap) {
@@ -122,7 +129,7 @@ TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
                 return NULL;
             }
 
-            TokenId* temp = realloc(tokens, cap * sizeof(TokenId));
+            uint32_t* temp = realloc(tokens, cap * sizeof(*temp));
             if (NULL == temp) {
                 free(tokens);
                 return NULL;
@@ -186,6 +193,7 @@ TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
                     token_size = 0;
                     for (; i < buf_size; ++i) {
                         if (!is_alpha_numeric(buf[i])) {
+                            --i;
                             break;
                         }
 
@@ -196,6 +204,7 @@ TokenId* lexer_tokenize(uchar* restrict buf, const size_t buf_size)
                         token[token_size] = buf[i];
                         ++token_size;
                     }
+
                       continue;
         }
     }

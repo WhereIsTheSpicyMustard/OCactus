@@ -1,6 +1,8 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+#include <stdint.h>
+
 #define U64(c) UINT64_C(c)
 #define U32(c) UINT32_C(c)
 
@@ -56,6 +58,42 @@ typedef enum {
     T_COUNT
 } Id;
 
-typedef uint32_t TokenId;
+
+typedef struct {
+    uchar* data;
+    size_t size;
+    size_t capacity;
+} CharArray;
+
+typedef struct {
+    uint32_t* data;
+    size_t size;
+    size_t capacity;
+} Int32Array;
+
+#define array_append(arr, x) do { \
+    __typeof__(*(arr).data) aa_item = (x); \
+    if ((arr).size >= (arr).capacity) { \
+        if ((arr).capacity == 0) { \
+            assert((arr).data == NULL); \
+            assert((arr).size == 0); \
+            (arr).capacity = 32; \
+        } \
+        (arr).capacity *= 2; \
+        if ((arr).size >= (arr).capacity) { \
+            fprintf(stderr, "%s:%d: array_append: capacity overflow\n", __FILE__, __LINE__); \
+            abort(); \
+        } \
+        __typeof__((arr).data) aa_temp = realloc((arr).data, (arr).capacity * sizeof(*((arr).data))); \
+        if (aa_temp == NULL) { \
+            fprintf(stderr, "%s:%d: array_append: realloc failed\n", __FILE__, __LINE__); \
+            abort(); \
+        } \
+        (arr).data = aa_temp; \
+    } \
+    (arr).data[(arr).size] = aa_item; \
+    ++((arr).size); \
+} while (0)
+
 
 #endif
